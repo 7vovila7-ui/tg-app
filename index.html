@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>MKX Value Tool</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;600;700&family=Share+Tech+Mono&family=Oswald:wght@300;400;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#0a0a0f; --bg2:#0f0f1a; --bg3:#141420;
+  --border:#1e1e35; --border2:#2a2a3a;
+  --gold:#c8a84b; --gold-light:#f0d080;
+  --blood:#8B0000; --blood-bright:#cc1111;
+  --green:#00e676; --red:#ff3d3d;
+  --muted:#666680; --text:#d0cfe8;
+  --R:#4a9eff; --F:#ff6b35; --B:#b44bff;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+body{background:var(--bg);color:var(--text);font-family:'Rajdhani',sans-serif;min-height:100vh;
+  background-image:radial-gradient(ellipse 80% 40% at 50% 0%,rgba(139,0,0,.12) 0%,transparent 70%),
+  repeating-linear-gradient(0deg,transparent,transparent 39px,rgba(255,255,255,.015) 40px),
+  repeating-linear-gradient(90deg,transparent,transparent 39px,rgba(255,255,255,.015) 40px);}
+.container{max-width:600px;margin:0 auto;padding:12px 12px 60px;}
+
+/* HEADER */
+.header{text-align:center;padding:18px 0 14px;position:relative;}
+.header::after{content:'';display:block;width:100%;height:1px;
+  background:linear-gradient(90deg,transparent,var(--blood-bright),var(--gold),var(--blood-bright),transparent);margin-top:14px;}
+.header h1{font-family:'Oswald',sans-serif;font-size:22px;font-weight:600;letter-spacing:4px;
+  background:linear-gradient(135deg,var(--gold-light),var(--gold),#a07828);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.header p{font-size:10px;color:var(--muted);letter-spacing:2px;margin-top:4px;font-family:'Share Tech Mono',monospace;}
+.reset-btn{position:absolute;right:0;top:18px;font-family:'Oswald',sans-serif;font-size:11px;letter-spacing:2px;
+  background:rgba(224,60,60,.1);border:1px solid rgba(224,60,60,.3);color:var(--red);
+  padding:6px 12px;border-radius:5px;cursor:pointer;}
+
+/* STEP LABELS */
+.step-label{font-family:'Oswald',sans-serif;font-size:12px;letter-spacing:3px;color:var(--gold);
+  margin:20px 0 8px;display:flex;align-items:center;gap:10px;}
+.step-num{background:var(--gold);color:#000;width:20px;height:20px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;}
+.step-label::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,var(--border2),transparent);}
+
+/* PASTE ZONE */
+.pzone{background:#0d0d16;border:2px dashed var(--border2);border-radius:7px;padding:16px;
+  cursor:pointer;transition:border-color .2s;position:relative;margin-bottom:8px;}
+.pzone:hover{border-color:var(--gold);}
+.pzone.ok{border-color:var(--green);border-style:solid;background:rgba(0,230,118,.03);}
+.pzone.err{border-color:var(--red);}
+.pzone.locked{pointer-events:none;opacity:.45;}
+.pzone-inner{text-align:center;padding:10px 0;}
+.pzone-icon{font-size:22px;display:block;margin-bottom:5px;}
+.pzone-title{font-family:'Oswald',sans-serif;font-size:15px;letter-spacing:2px;color:var(--gold);}
+.pzone-sub{font-size:10px;color:var(--muted);margin-top:3px;font-family:'Share Tech Mono',monospace;}
+
+.status{display:flex;align-items:center;gap:7px;font-family:'Share Tech Mono',monospace;font-size:10px;min-height:18px;margin-bottom:4px;}
+.sdot{width:6px;height:6px;border-radius:50%;background:var(--muted);}
+.sdot.ok{background:var(--green);box-shadow:0 0 6px var(--green);}
+.sdot.err{background:var(--red);}
+.sdot.warn{background:var(--gold);}
+.stext{color:var(--muted);}
+.stext.ok{color:var(--green);}
+.stext.err{color:var(--red);}
+.stext.warn{color:var(--gold);}
+
+/* DELAY CARDS */
+.delay-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:10px 0;}
+.delay-card{background:#0d0d16;border:1px solid var(--border2);border-radius:7px;padding:12px 10px;text-align:center;position:relative;overflow:hidden;transition:all .3s;opacity:.35;}
+.delay-card.winner{border-width:2px;opacity:1;}
+.delay-card .dc-type{font-family:'Oswald',sans-serif;font-size:16px;font-weight:600;letter-spacing:2px;}
+.delay-card .dc-name{font-size:9px;color:var(--muted);letter-spacing:1px;margin-top:2px;}
+.delay-card .dc-delay{font-family:'Share Tech Mono',monospace;font-size:22px;font-weight:700;margin:6px 0 3px;}
+.delay-card .dc-label{font-size:10px;color:var(--muted);}
+.delay-card .dc-bar{height:3px;border-radius:2px;margin-top:8px;transition:width .5s;}
+.delay-card .dc-badge{position:absolute;top:7px;right:7px;font-size:12px;}
+
+/* ROUND DELAY */
+.rd-row{display:flex;align-items:center;gap:10px;padding:9px 12px;background:#0d0d16;border:1px solid var(--border2);border-radius:7px;margin-bottom:5px;}
+.rd-label{font-family:'Oswald',sans-serif;font-size:15px;font-weight:700;letter-spacing:2px;min-width:18px;}
+.rd-arrow{color:var(--muted);font-size:13px;}
+.rd-rounds{font-family:'Share Tech Mono',monospace;font-size:13px;color:var(--text);}
+.rd-rounds b{color:var(--gold-light);font-size:16px;letter-spacing:2px;}
+
+/* TABLE */
+.table-wrap{background:#0d0d16;border:1px solid var(--border2);border-radius:7px;overflow:hidden;margin:10px 0;}
+.rtable{width:100%;border-collapse:collapse;font-size:12px;}
+.rtable th{background:#080810;font-family:'Oswald',sans-serif;font-size:9px;letter-spacing:2px;
+  color:var(--muted);padding:8px 6px;text-align:center;border-bottom:1px solid var(--border);}
+.rtable td{padding:8px 6px;text-align:center;border-bottom:1px solid rgba(255,255,255,.04);
+  font-family:'Share Tech Mono',monospace;font-size:12px;}
+.rtable tr:last-child td{border-bottom:none;}
+.rtable tr.avg-row td{background:rgba(255,255,255,.025);font-weight:700;}
+.rtable tr.dim-row{opacity:.3;}
+.td-r{font-family:'Oswald',sans-serif;font-size:15px;font-weight:600;color:var(--gold);}
+.vp{color:var(--green);}
+.vn{color:var(--red);}
+.pct{color:var(--text);}
+
+/* RECOMMENDATION */
+.rec{border-radius:7px;padding:14px 16px;display:flex;align-items:center;gap:14px;margin-top:12px;}
+.rec.wait{background:rgba(255,255,255,.03);border:1px solid var(--border2);color:var(--muted);
+  font-family:'Oswald',sans-serif;letter-spacing:3px;font-size:12px;justify-content:center;}
+.rec.pos{background:rgba(0,230,118,.07);border:1px solid rgba(0,230,118,.25);}
+.rec.neg{background:rgba(255,61,61,.07);border:1px solid rgba(255,61,61,.25);}
+.rec-icon{font-size:26px;flex-shrink:0;}
+.rec-main{font-family:'Oswald',sans-serif;font-size:17px;letter-spacing:2px;}
+.rec-sub{font-size:12px;color:var(--muted);margin-top:3px;font-family:'Share Tech Mono',monospace;}
+
+/* PASTE BTN */
+.paste-btn{width:100%;padding:11px;background:#13131c;border:1px solid var(--border2);border-radius:6px;
+  color:var(--gold);font-family:'Oswald',sans-serif;font-size:13px;letter-spacing:2px;
+  cursor:pointer;margin-bottom:8px;}
+.paste-btn:active{background:#1a1a2a;}
+
+.hidden{display:none!important;}
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div class="header">
+    <h1>⚔ MKX VALUE TOOL</h1>
+    <div id="fightBanner" class="hidden" style="margin:6px 0 2px;font-family:'Oswald',sans-serif;font-size:17px;letter-spacing:3px;"></div>
+    <p>ШАГ 1: ЗАПОЗДАНИЕ ПАРЫ · ШАГ 2: VALUE ПО РАУНДАМ</p>
+    <button class="reset-btn" onclick="resetAll()">↺ СБРОС</button>
+  </div>
+
+  <!-- STEP 1 -->
+  <div class="step-label"><div class="step-num">1</div> ИСТОРИЯ ПАРЫ — ЗАПОЗДАНИЕ</div>
+
+  <button class="paste-btn" onclick="pasteZone1()">📋 ВСТАВИТЬ ИЗ БУФЕРА</button>
+
+  <div class="pzone" id="z1" onclick="focusTA1()">
+    <div class="pzone-inner" id="z1hint">
+      <span class="pzone-icon">⚔</span>
+      <div class="pzone-title">Вставить историю пары</div>
+      <div class="pzone-sub">Скопируй страницу истории пары с BKstat → нажми кнопку выше или Ctrl+V здесь</div>
+    </div>
+    <textarea id="ta1" style="position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:text;resize:none;border:none;outline:none;font-size:1px;" autocomplete="off" spellcheck="false"></textarea>
+  </div>
+  <div class="status"><div class="sdot" id="sd1"></div><div class="stext" id="st1">Ожидание...</div></div>
+
+  <!-- DELAY CARDS -->
+  <div class="delay-grid hidden" id="delayGrid">
+    <div class="delay-card" id="dc-R">
+      <div class="dc-badge" id="db-R"></div>
+      <div class="dc-type" style="color:var(--R)">R</div>
+      <div class="dc-name">Без добивания</div>
+      <div class="dc-delay" id="dd-R">—</div>
+      <div class="dc-label" id="dl-R">запоздание</div>
+      <div class="dc-bar" id="dbar-R" style="background:var(--R);width:0%"></div>
+    </div>
+    <div class="delay-card" id="dc-F">
+      <div class="dc-badge" id="db-F"></div>
+      <div class="dc-type" style="color:var(--F)">F</div>
+      <div class="dc-name">Фаталити</div>
+      <div class="dc-delay" id="dd-F">—</div>
+      <div class="dc-label" id="dl-F">запоздание</div>
+      <div class="dc-bar" id="dbar-F" style="background:var(--F);width:0%"></div>
+    </div>
+    <div class="delay-card" id="dc-B">
+      <div class="dc-badge" id="db-B"></div>
+      <div class="dc-type" style="color:var(--B)">B</div>
+      <div class="dc-name">Бруталити</div>
+      <div class="dc-delay" id="dd-B">—</div>
+      <div class="dc-label" id="dl-B">запоздание</div>
+      <div class="dc-bar" id="dbar-B" style="background:var(--B);width:0%"></div>
+    </div>
+  </div>
+
+  <!-- ROUND DELAY -->
+  <div class="hidden" id="roundDelaySection">
+    <div class="step-label" style="margin-top:16px"><div class="step-num" style="background:var(--gold);color:#000">↓</div> ВЕРОЯТНЫЕ РАУНДЫ</div>
+    <div id="roundDelayCards"></div>
+  </div>
+
+  <!-- STEP 2 -->
+  <div class="step-label hidden" id="step2label"><div class="step-num">2</div> ТАБЛИЦА РАУНДОВ — VALUE</div>
+
+  <button class="paste-btn hidden" id="pasteBtn2" onclick="pasteZone2()">📋 ВСТАВИТЬ СТАТИСТИКУ РАУНДОВ</button>
+
+  <div class="pzone locked hidden" id="z2" onclick="focusTA2()">
+    <div class="pzone-inner" id="z2hint">
+      <span class="pzone-icon">📊</span>
+      <div class="pzone-title">Вставить таблицу раундов</div>
+      <div class="pzone-sub">Скопируй страницу статистики раундов с BKstat</div>
+    </div>
+    <textarea id="ta2" style="position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:text;resize:none;border:none;outline:none;font-size:1px;" autocomplete="off" spellcheck="false"></textarea>
+  </div>
+  <div class="status hidden" id="st2wrap"><div class="sdot" id="sd2"></div><div class="stext" id="st2">Ожидание...</div></div>
+
+  <!-- RESULTS -->
+  <div class="hidden" id="calcSection">
+    <div class="table-wrap">
+      <table class="rtable">
+        <thead><tr>
+          <th>Раунд</th><th>P%</th><th>Value %</th><th>¼ Kelly</th><th>Статус</th>
+        </tr></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+    <div class="rec wait" id="rec">ВВЕДИТЕ КЭФ</div>
+  </div>
+
+</div>
+
+<script>
+const tg = window.Telegram.WebApp;
+tg.ready();
+tg.expand();
+
+// ── State ──
+let chain=[], matchList=[], roundTop3={}, parsedRounds={}, passedTypes=[], matchOdds=null, step1done=false;
+
+// ── Helpers ──
+function mean(a){return a.length?a.reduce((x,y)=>x+y,0)/a.length:0;}
+function calcDelay(c,t){
+  const pos=c.map((r,i)=>r===t?i:-1).filter(i=>i>=0);
+  if(!pos.length) return 0;
+  const ivArr=[]; for(let i=1;i<pos.length;i++) ivArr.push(pos[i]-pos[i-1]);
+  const avg=mean(ivArr);
+  const since=c.length-1-pos[pos.length-1];
+  return avg>0?since/avg:0;
+}
+function roundDelay(matches,outcomeType,roundNum){
+  const ch=matches.map(m=>m.length>=roundNum&&m[roundNum-1]===outcomeType?1:0);
+  if(!ch.length) return 0;
+  const hits=ch.map((v,i)=>v?i:-1).filter(i=>i>=0);
+  if(!hits.length) return 0;
+  if(hits.length===1) return ch.length-hits[0];
+  const ivs=[]; for(let i=1;i<hits.length;i++) ivs.push(hits[i]-hits[i-1]);
+  const avg=ivs.reduce((a,b)=>a+b,0)/ivs.length;
+  const since=ch.length-1-hits[hits.length-1];
+  return avg>0?since/avg:0;
+}
+function kelly(odds,p){const v=odds*p-1;if(v<=0)return null;return(v/(odds-1))/4;}
+function fmt(v){if(v===null||isNaN(v))return'<span style="color:var(--muted)">—</span>';
+  const s=(v*100).toFixed(1);return`<span class="${v>0?'vp':'vn'}">${v>0?'+':''}${s}%</span>`;}
+function fmtP(v){return`<span class="pct">${(v*100).toFixed(1)}%</span>`;}
+
+// ── Paste handlers ──
+function focusTA1(){document.getElementById('ta1').focus();}
+function focusTA2(){document.getElementById('ta2').focus();}
+
+async function pasteZone1(){
+  try{
+    const text=await navigator.clipboard.readText();
+    if(text&&text.length>30){handlePaste1(text);}
+    else{setS(1,'err','Буфер пуст — сначала скопируй страницу BKstat');}
+  }catch(e){
+    focusTA1();
+    setS(1,'warn','Нажми в серое поле ниже и вставь вручную (Ctrl+V)');
+  }
+}
+async function pasteZone2(){
+  try{
+    const text=await navigator.clipboard.readText();
+    if(text&&text.length>30){handlePaste2(text);}
+    else{setS(2,'err','Буфер пуст — сначала скопируй страницу BKstat');}
+  }catch(e){
+    focusTA2();
+    setS(2,'warn','Нажми в серое поле ниже и вставь вручную (Ctrl+V)');
+  }
+}
+
+// Listen for manual paste on textareas
+document.getElementById('ta1').addEventListener('paste',e=>{
+  e.preventDefault();
+  const text=(e.clipboardData||window.clipboardData).getData('text');
+  if(text) handlePaste1(text);
+});
+document.getElementById('ta2').addEventListener('paste',e=>{
+  e.preventDefault();
+  const text=(e.clipboardData||window.clipboardData).getData('text');
+  if(text) handlePaste2(text);
+});
+
+// ── STEP 1: Parse pair history ──
+function handlePaste1(raw){
+  // Source check
+  if(!raw.includes('BKstat.VIP')&&!raw.includes('BKstat \u00a92018 Created by Napad Maxim')){
+    setS(1,'err','⛔ Неверный источник. Нужна страница BKstat.');
+    document.getElementById('z1').classList.add('err');
+    return;
+  }
+  parsePair(raw);
+}
+
+function parsePair(raw){
+  const TOKEN_MAP={'R':'R','FW':'R','F':'F','F/FW':'F','B':'B','B/FW':'B'};
+  const ch=[], ml=[], lines=raw.split('\n');
+  let curRounds=[], inMatch=false;
+
+  for(let i=0;i<lines.length;i++){
+    const line=lines[i].trim();
+    // Match boundary: standalone number >= 2, next line = date
+    if(/^\d{1,3}$/.test(line)){
+      const num=parseInt(line);
+      const next=(lines[i+1]||'').trim();
+      if(num>=2&&/^\d{2}-\d{2}-\d{2}/.test(next)){
+        if(inMatch&&curRounds.length) ml.push(curRounds);
+        curRounds=[]; inMatch=true; continue;
+      }
+    }
+    // Round outcome: "П1 R" or "П2 FW" etc
+    const m=line.match(/^(П[12])\s+(\S+)$/);
+    if(m){
+      const t=TOKEN_MAP[m[2]];
+      if(t){ch.push(t);if(inMatch) curRounds.push(t);}
+    }
+  }
+  if(inMatch&&curRounds.length) ml.push(curRounds);
+  ml.reverse();
+
+  if(ch.length<10){setS(1,'err','Недостаточно данных. Нужна история матчей пары.');return;}
+
+  chain=ch; matchList=ml;
+
+  // Odds from match #1
+  const ll=lines.map(l=>l.trim()).filter(l=>l);
+  matchOdds=null;
+  for(let i=0;i<ll.length;i++){
+    if(ll[i]==='1'&&ll[i+1]&&/^\d{2}-\d{2}-\d{2}/.test(ll[i+1])){
+      let scoreFound=false,nums=[];
+      const block=ll.slice(i,i+40);
+      for(const bl of block){
+        if(!scoreFound){if(/^\d{1,2}:\d{1,2}$/.test(bl))scoreFound=true;continue;}
+        const n=parseFloat(bl.replace(',','.'));
+        if(!isNaN(n)&&n>=1.01&&n<=200)nums.push(n);
+        if(nums.length===3)break;
+      }
+      if(nums.length>=3)matchOdds={R:nums[0],F:nums[1],B:nums[2]};
+      break;
+    }
+  }
+
+  // Fighter names
+  let f1='',f2='';
+  for(let i=0;i<ll.length;i++){
+    if(ll[i]==='1'&&ll[i+1]&&/^\d{2}-\d{2}-\d{2}/.test(ll[i+1])){
+      for(let j=i+1;j<Math.min(i+12,ll.length);j++){
+        if(ll[j].includes('Mortal Kombat')||ll[j].includes('Tekken')||ll[j].includes('Killer')||ll[j].includes('UFC')||ll[j].includes('Fifa')){
+          f1=ll[j+1]||''; f2=ll[j+2]||''; break;
+        }
+      }
+      break;
+    }
+  }
+  if(f1&&f2){
+    const b=document.getElementById('fightBanner');
+    b.innerHTML=`<span style="color:var(--gold-light)">${f1}</span> <span style="color:var(--muted);font-size:13px">VS</span> <span style="color:var(--gold-light)">${f2}</span>`;
+    b.classList.remove('hidden');
+  }
+
+  const delays={R:calcDelay(ch,'R'),F:calcDelay(ch,'F'),B:calcDelay(ch,'B')};
+  const maxD=Math.max(...Object.values(delays));
+  passedTypes=['R','F','B'].filter(t=>delays[t]>0);
+
+  // Update delay cards
+  document.getElementById('delayGrid').classList.remove('hidden');
+  for(const t of ['R','F','B']){
+    const d=delays[t];
+    const pct=Math.min(100,maxD>0?d/maxD*100:0);
+    document.getElementById('dd-'+t).textContent='×'+d.toFixed(2);
+    document.getElementById('dbar-'+t).style.width=pct+'%';
+    const card=document.getElementById('dc-'+t);
+    const badge=document.getElementById('db-'+t);
+    const oddsVal=matchOdds?matchOdds[t]:null;
+    document.getElementById('dl-'+t).innerHTML='запоздание'+(oddsVal?`<div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--muted);margin-top:3px">кэф: <span style="color:var(--gold)">${oddsVal}</span></div>`:'');
+    if(d>=1.0){
+      card.className='delay-card winner';
+      const rgb=t==='R'?'74,158,255':t==='F'?'255,107,53':'180,75,255';
+      card.style.borderColor=`var(--${t})`;card.style.boxShadow=`0 0 16px rgba(${rgb},.25)`;
+      badge.textContent='✅';document.getElementById('dd-'+t).style.color='var(--green)';
+    }else if(d>0){
+      card.className='delay-card winner';card.style.borderColor='var(--gold)';card.style.boxShadow='0 0 10px rgba(200,168,75,.15)';
+      badge.textContent='🟡';document.getElementById('dd-'+t).style.color='var(--gold)';
+    }else{
+      card.className='delay-card';card.style.borderColor='';card.style.boxShadow='';
+      badge.textContent='';document.getElementById('dd-'+t).style.color='var(--red)';
+    }
+  }
+
+  // Round delays
+  if(matchList.length&&passedTypes.length){
+    roundTop3={};let html='';
+    const typeColors={R:'var(--R)',F:'var(--F)',B:'var(--B)'};
+    for(const t of passedTypes){
+      const d5=[1,2,3,4,5].map(r=>({r,d:roundDelay(matchList,t,r)}));
+      d5.sort((a,b)=>b.d-a.d);
+      const top3=d5.slice(0,3).map(x=>x.r).sort((a,b)=>a-b);
+      roundTop3[t]=top3;
+      html+=`<div class="rd-row"><span class="rd-label" style="color:${typeColors[t]}">${t}</span><span class="rd-arrow">→</span><span class="rd-rounds">раунды <b>${top3.join(' — ')}</b></span></div>`;
+    }
+    document.getElementById('roundDelayCards').innerHTML=html;
+    document.getElementById('roundDelaySection').classList.remove('hidden');
+  }
+
+  const passedStr=passedTypes.length
+    ?passedTypes.map(t=>`<span style="color:var(--${t})">${t}</span>`).join(', ')
+    :'<span style="color:var(--red)">нет</span>';
+
+  setS(1,'ok',`Цепочка: ${ch.length} раундов · Прошли: ${passedTypes.join(', ')||'нет'}`);
+  document.getElementById('z1').classList.add('ok');
+  document.getElementById('z1hint').innerHTML=`<span class="pzone-icon">✅</span>
+    <div class="pzone-title" style="color:var(--green)">История загружена</div>
+    <div class="pzone-sub">${ch.length} раундов · Прошли фильтр: ${passedStr}</div>`;
+
+  if(!passedTypes.length){step1done=true;return;}
+
+  const typeNames={R:'Без добивания',F:'Фаталити',B:'Бруталити'};
+  document.getElementById('step2label').classList.remove('hidden');
+  document.getElementById('pasteBtn2').classList.remove('hidden');
+  const z2=document.getElementById('z2');
+  z2.classList.remove('hidden','locked');
+  document.getElementById('st2wrap').classList.remove('hidden');
+  document.getElementById('z2hint').innerHTML=`<span class="pzone-icon">📊</span>
+    <div class="pzone-title">Вставить таблицу раундов</div>
+    <div class="pzone-sub">Считаем value по: ${passedTypes.map(t=>`<span style="color:var(--${t})">${typeNames[t]}</span>`).join(', ')}</div>`;
+  step1done=true;
+}
+
+// ── STEP 2: Parse round table ──
+function handlePaste2(raw){
+  if(!step1done){setS(2,'err','Сначала загрузите историю пары');return;}
+  parseRounds(raw);
+}
+
+function parseRounds(raw){
+  const lines=raw.split('\n').map(l=>l.trim()).filter(l=>l);
+  const data={};
+  for(let i=0;i<lines.length-24;i++){
+    const rn=parseInt(lines[i]);
+    if(isNaN(rn)||rn<1||rn>9) continue;
+    const total=parseFloat(lines[i+1]);
+    if(isNaN(total)||total<50) continue;
+    const chunk=lines.slice(i,i+25);
+    if(chunk.length<25) continue;
+    const pR=parseFloat(chunk[7].replace(',','.')),
+          pF=parseFloat(chunk[13].replace(',','.')),
+          pB=parseFloat(chunk[19].replace(',','.'));
+    if(isNaN(pR)||isNaN(pF)||isNaN(pB)) continue;
+    if(!data[rn]) data[rn]={pR:pR/100,pF:pF/100,pB:pB/100};
+  }
+  if(![1,2,3,4,5].every(r=>data[r])){setS(2,'err','Нужны раунды 1–5. Проверьте источник.');return;}
+  parsedRounds=data;
+  setS(2,'ok',`Загружено 5 раундов · Считаем value`);
+  document.getElementById('z2').classList.add('ok');
+  document.getElementById('z2hint').innerHTML=`<span class="pzone-icon">✅</span>
+    <div class="pzone-title" style="color:var(--green)">Таблица загружена</div>
+    <div class="pzone-sub">Раунды 1–5 готовы</div>`;
+  document.getElementById('calcSection').classList.remove('hidden');
+  recalc();
+  document.getElementById('calcSection').scrollIntoView({behavior:'smooth'});
+}
+
+// ── RECALC ──
+function recalc(){
+  if(!passedTypes.length||!Object.keys(parsedRounds).length) return;
+  const typeNames={R:'Без добивания',F:'Фаталити',B:'Бруталити'};
+  const pKeys={R:'pR',F:'pF',B:'pB'};
+  let html='';
+  const recResults=[];
+
+  for(const t of passedTypes){
+    const odds=matchOdds?matchOdds[t]:0;
+    const pKey=pKeys[t];
+    const typeColor=`var(--${t})`;
+
+    let middle;
+    if(roundTop3[t]&&roundTop3[t].length===3){
+      middle=roundTop3[t];
+    }else{
+      const vFb=[1,2,3,4,5].map(r=>({r,p:parsedRounds[r][pKey]}));
+      vFb.sort((a,b)=>a.p-b.p);
+      middle=vFb.slice(1,4).map(v=>v.r).sort((a,b)=>a-b);
+    }
+
+    const avgP=middle.reduce((s,r)=>s+parsedRounds[r][pKey],0)/3;
+    const avgV=odds>0?odds*avgP-1:null;
+    const avgK=odds>0?kelly(odds,avgP):null;
+
+    html+=`<tr><td colspan="5" style="padding:9px 10px 3px;font-family:'Oswald',sans-serif;font-size:12px;letter-spacing:2px;color:${typeColor};background:rgba(0,0,0,.3);border-bottom:1px solid var(--border)">
+      ${t} — ${typeNames[t]} · кэф <span style="color:var(--gold)">${odds||'—'}</span>
+    </td></tr>`;
+
+    const allVals=[1,2,3,4,5].map(r=>({r,p:parsedRounds[r][pKey]})).sort((a,b)=>a.p-b.p);
+    for(let r=1;r<=5;r++){
+      const p=parsedRounds[r][pKey];
+      const isMid=middle.includes(r);
+      const isMax=allVals[4].r===r,isMin=allVals[0].r===r;
+      const tag=isMax?'▲ макс':isMin?'▽ мин':'';
+      const v=odds>0?odds*p-1:null;
+      const k=odds>0?kelly(odds,p):null;
+      if(isMid){
+        html+=`<tr><td class="td-r">${r}</td><td style="color:${typeColor}">${fmtP(p)}</td><td>${odds>0?fmt(v):'—'}</td><td>${k?`<span style="color:var(--gold)">${(k*100).toFixed(1)}%</span>`:'—'}</td><td style="color:var(--green);font-size:10px">✓ ВЫБРАН</td></tr>`;
+      }else{
+        html+=`<tr class="dim-row"><td class="td-r" style="opacity:.5">${r}</td><td>${fmtP(p)}</td><td>—</td><td>—</td><td style="color:var(--muted);font-size:10px">${tag}</td></tr>`;
+      }
+    }
+    html+=`<tr class="avg-row"><td class="td-r" style="font-size:10px;color:var(--muted)">Р${middle.join(',')}</td><td style="color:${typeColor}">${fmtP(avgP)}</td><td>${odds>0?fmt(avgV):'—'}</td><td>${avgK?`<span style="color:var(--gold-light)">${(avgK*100).toFixed(1)}%</span>`:'—'}</td><td style="color:var(--gold);font-size:10px">AVG</td></tr>`;
+
+    if(odds>0) recResults.push({t,odds,avgP,avgV,avgK,middle});
+  }
+
+  document.getElementById('tbody').innerHTML=html;
+
+  const rec=document.getElementById('rec');
+  const winners=recResults.filter(r=>r.avgV>0).sort((a,b)=>b.avgV-a.avgV);
+  if(winners.length>0){
+    const lines=winners.map(r=>{
+      const ks=r.avgK?` · ¼Kelly: <b>${(r.avgK*100).toFixed(1)}%</b>`:'';
+      return `<div style="margin-top:4px"><span style="color:var(--${r.t})">${typeNames[r.t]}</span> · кэф ${r.odds} · value <b style="color:var(--green)">+${(r.avgV*100).toFixed(1)}%</b>${ks} · раунды ${r.middle.join(',')}</div>`;
+    }).join('');
+    rec.className='rec pos';
+    rec.innerHTML=`<div class="rec-icon">✅</div><div><div class="rec-main">СТАВИТЬ</div>${lines}</div>`;
+  }else if(recResults.length>0){
+    rec.className='rec neg';
+    rec.innerHTML=`<div class="rec-icon">❌</div><div><div class="rec-main">НЕТ VALUE</div><div class="rec-sub">Прошедшие исходы не дают перевеса при текущих кэфах</div></div>`;
+  }else{
+    rec.className='rec wait';
+    rec.innerHTML='КЭФ НЕ НАЙДЕН В ИСТОРИИ';
+  }
+}
+
+// ── STATUS ──
+function setS(step,type,msg){
+  const d=document.getElementById('sd'+step),t=document.getElementById('st'+step);
+  d.className='sdot '+(type||'');t.className='stext '+(type||'');t.textContent=msg;
+}
+
+// ── RESET ──
+function resetAll(){
+  chain=[];matchList=[];roundTop3={};parsedRounds={};passedTypes=[];matchOdds=null;step1done=false;
+  document.getElementById('fightBanner').classList.add('hidden');document.getElementById('fightBanner').innerHTML='';
+  document.getElementById('delayGrid').classList.add('hidden');
+  document.getElementById('roundDelaySection').classList.add('hidden');document.getElementById('roundDelayCards').innerHTML='';
+  document.getElementById('step2label').classList.add('hidden');
+  document.getElementById('pasteBtn2').classList.add('hidden');
+  document.getElementById('z2').className='pzone locked hidden';
+  document.getElementById('st2wrap').classList.add('hidden');
+  document.getElementById('calcSection').classList.add('hidden');
+  document.getElementById('z1').className='pzone';
+  document.getElementById('z1hint').innerHTML=`<span class="pzone-icon">⚔</span><div class="pzone-title">Вставить историю пары</div><div class="pzone-sub">Скопируй страницу истории пары с BKstat → нажми кнопку выше или Ctrl+V здесь</div>`;
+  document.getElementById('z2hint').innerHTML=`<span class="pzone-icon">📊</span><div class="pzone-title">Вставить таблицу раундов</div><div class="pzone-sub">Скопируй страницу статистики раундов с BKstat</div>`;
+  setS(1,'','Ожидание...');setS(2,'','Ожидание...');
+  document.getElementById('rec').className='rec wait';document.getElementById('rec').innerHTML='—';
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+</script>
+</body>
+</html>
